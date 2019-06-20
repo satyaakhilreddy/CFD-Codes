@@ -1,0 +1,363 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>CFD - Final Project - Godunov scheme</title><meta name="generator" content="MATLAB 9.0"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2018-12-12"><meta name="DC.source" content="Godunov_scheme.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h1>CFD - Final Project - Godunov scheme</h1><!--introduction--><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Given Parameters</a></li><li><a href="#2">Discretization Parameters</a></li><li><a href="#3">Initialization</a></li><li><a href="#4">Initial SOD conditions</a></li><li><a href="#5">Velocity, Pressure and density from Q and E vectors</a></li><li><a href="#6">Godunov Scheme</a></li><li><a href="#7">Exact Solution</a></li><li><a href="#8">Visualization</a></li></ul></div><h2>Given Parameters<a name="1"></a></h2><pre class="codeinput">T_final=0.1644;
+L=1;
+dx=0.01;
+g=1.4;
+cfl=0.8;
+</pre><h2>Discretization Parameters<a name="2"></a></h2><pre class="codeinput">dt=0.001644;
+T=0:dt:T_final;
+X=0:dx:L;
+</pre><h2>Initialization<a name="3"></a></h2><pre class="codeinput">Q=zeros(3,size(X,2));
+E=zeros(3,size(X,2));
+F=zeros(3,size(X,2));
+alpha=zeros(1,size(X,2)-1);
+</pre><h2>Initial SOD conditions<a name="4"></a></h2><pre class="codeinput">Q(1,1:(0.5/dx))=1;
+Q(1,(0.5/dx)+1:size(X,2))=0.125;
+
+Q(2,1:(0.5/dx))=0;
+Q(2,(0.5/dx)+1:size(X,2))=0;
+
+Q(3,1:(0.5/dx))=2.5;
+Q(3,(0.5/dx)+1:size(X,2))=0.25;
+
+E(1,:)=Q(2,:);
+E(2,:)=((3-g)/2)*((Q(2,:).^2)./Q(1,:))+(g-1)*Q(3,:);
+E(3,:)=(Q(2,:)./Q(1,:)).*(g*Q(3,:)-((g-1)/2)*((Q(2,:).^2)./Q(1,:)));
+
+<span class="comment">% E(1,:)=Q(2,:);</span>
+<span class="comment">% E(2,:)=((g-3)/2)*Q(1,:).*Q(2,:)+(g-1)*Q(3,:);</span>
+<span class="comment">% E(3,:)=(Q(2,:)./Q(1,:)).*(g*Q(3,:)-((g-1)/2)*Q(1,:).*Q(2,:));</span>
+</pre><h2>Velocity, Pressure and density from Q and E vectors<a name="5"></a></h2><pre class="codeinput">u=Q(2,:)./Q(1,:);
+rho=Q(1,:);
+et=Q(3,:)./Q(1,:);
+e=et-u.^2/2;
+p=e.*rho*(g-1);
+
+tic
+</pre><h2>Godunov Scheme<a name="6"></a></h2><pre class="codeinput"><span class="keyword">for</span> t=1:size(T,2)
+<span class="comment">%t=0;</span>
+<span class="comment">%while t&lt;T_final</span>
+    Q_old=Q;
+    <span class="keyword">for</span> l=1:3
+        <span class="comment">% Finding Lax-Friedrich flux</span>
+        <span class="keyword">for</span> i=1:(size(X,2)-1)
+            <span class="comment">% Velocity of sound in their respective domains</span>
+            cl=sqrt((g*p(i))/rho(i));
+            cr=sqrt((g*p(i+1))/rho(i+1));
+
+            <span class="comment">% Finding the maximum eigen value</span>
+            A=[abs(u(i)),abs(u(i)+cl),abs(u(i)-cl),abs(u(i+1)),abs(u(i+1)+cr),abs(u(i+1)-cr)];
+            alpha(i)=max(A);
+
+            <span class="comment">% Lax-Friedrich flux</span>
+            F(l,i)=0.5*(E(l,i)+E(l,i+1))-0.5*alpha(i)*(Q_old(l,i+1)-Q_old(l,i));
+        <span class="keyword">end</span>
+
+        <span class="comment">% Time step determination</span>
+        <span class="comment">%dt=cfl*(dx/max(alpha));</span>
+
+        <span class="comment">% Time Marching</span>
+        <span class="keyword">for</span> j=2:size(X,2)-1
+            Q(l,j)=Q_old(l,j)-(dt/dx)*(F(l,j)-F(l,j-1));
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+
+    <span class="comment">% Updating the flux</span>
+    E(1,:)=Q(2,:);
+    E(2,:)=((3-g)/2)*((Q(2,:).^2)./Q(1,:))+(g-1)*Q(3,:);
+    E(3,:)=(Q(2,:)./Q(1,:)).*(g*Q(3,:)-((g-1)/2)*((Q(2,:).^2)./Q(1,:)));
+
+<span class="comment">%     E(1,:)=Q(2,:);</span>
+<span class="comment">%     E(2,:)=((g-3)/2)*Q(1,:).*Q(2,:)+(g-1)*Q(3,:);</span>
+<span class="comment">%     E(3,:)=(Q(2,:)./Q(1,:)).*(g*Q(3,:)-((g-1)/2)*Q(1,:).*Q(2,:));</span>
+
+    <span class="comment">% Updating velcity, pressure and density vectors</span>
+    u=Q(2,:)./Q(1,:);
+    rho=Q(1,:);
+    et=Q(3,:)./Q(1,:);
+    e=et-u.^2/2;
+    p=e.*rho*(g-1);
+
+    <span class="comment">%t=t+dt;</span>
+<span class="keyword">end</span>
+toc
+</pre><pre class="codeoutput">Elapsed time is 0.121170 seconds.
+</pre><h2>Exact Solution<a name="7"></a></h2><pre class="codeinput">[p_e,u_e,rho_e]=RiemannExact(1,1,0,0.1,0.125,0,1e-4);
+</pre><pre class="codeoutput">The solution is RCS
+wd= 
+   -1.7521
+
+u= 
+    0.9275
+
+p2= 
+    0.3032
+
+p3= 
+    0.3031
+
+rho2= 
+    0.4263
+
+rho3= 
+    0.2656
+
+The number of iterations is: 
+     3
+
+
+t =
+
+    0.1644
+
+
+x0 =
+
+   -0.5000
+
+
+xf =
+
+    0.5000
+
+
+npoints =
+
+   101
+
+</pre><h2>Visualization<a name="8"></a></h2><pre class="codeinput">figure
+plot(X,u,<span class="string">'r-'</span>,<span class="string">'LineWidth'</span>,2);
+hold <span class="string">on</span>
+plot(X,u_e,<span class="string">'k--'</span>);
+grid <span class="string">on</span>
+xlabel(<span class="string">'X'</span>);
+ylabel(<span class="string">'Velocity'</span>);
+title(<span class="string">'Velocity - Gudonov Scheme'</span>);
+legend(<span class="string">'Godunov Solution'</span>,<span class="string">'Exact solution'</span>)
+
+figure
+plot(X,rho,<span class="string">'g-'</span>,<span class="string">'LineWidth'</span>,2);
+hold <span class="string">on</span>
+plot(X,rho_e,<span class="string">'k--'</span>);
+grid <span class="string">on</span>
+xlabel(<span class="string">'X'</span>);
+ylabel(<span class="string">'Density'</span>);
+title(<span class="string">'Density - Gudonov Scheme'</span>);
+legend(<span class="string">'Godunov Solution'</span>,<span class="string">'Exact solution'</span>)
+
+figure
+plot(X,p,<span class="string">'b-'</span>,<span class="string">'LineWidth'</span>,2);
+hold <span class="string">on</span>
+plot(X,p_e,<span class="string">'k--'</span>);
+grid <span class="string">on</span>
+xlabel(<span class="string">'X'</span>);
+ylabel(<span class="string">'Pressure'</span>);
+title(<span class="string">'Pressure - Gudonov Scheme'</span>);
+legend(<span class="string">'Godunov Solution'</span>,<span class="string">'Exact solution'</span>)
+</pre><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2016a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+%% CFD - Final Project - Godunov scheme
+
+%% Given Parameters
+
+T_final=0.1644;
+L=1;
+dx=0.01;
+g=1.4;
+cfl=0.8;
+
+%% Discretization Parameters
+
+dt=0.001644;
+T=0:dt:T_final;
+X=0:dx:L;
+
+%% Initialization
+
+Q=zeros(3,size(X,2));
+E=zeros(3,size(X,2));
+F=zeros(3,size(X,2));
+alpha=zeros(1,size(X,2)-1);
+
+%% Initial SOD conditions
+
+Q(1,1:(0.5/dx))=1;
+Q(1,(0.5/dx)+1:size(X,2))=0.125;
+
+Q(2,1:(0.5/dx))=0;
+Q(2,(0.5/dx)+1:size(X,2))=0;
+
+Q(3,1:(0.5/dx))=2.5;
+Q(3,(0.5/dx)+1:size(X,2))=0.25;
+
+E(1,:)=Q(2,:);
+E(2,:)=((3-g)/2)*((Q(2,:).^2)./Q(1,:))+(g-1)*Q(3,:);
+E(3,:)=(Q(2,:)./Q(1,:)).*(g*Q(3,:)-((g-1)/2)*((Q(2,:).^2)./Q(1,:)));
+
+% E(1,:)=Q(2,:);
+% E(2,:)=((g-3)/2)*Q(1,:).*Q(2,:)+(g-1)*Q(3,:);
+% E(3,:)=(Q(2,:)./Q(1,:)).*(g*Q(3,:)-((g-1)/2)*Q(1,:).*Q(2,:));
+
+%% Velocity, Pressure and density from Q and E vectors
+
+u=Q(2,:)./Q(1,:);
+rho=Q(1,:);
+et=Q(3,:)./Q(1,:);
+e=et-u.^2/2;
+p=e.*rho*(g-1);
+
+tic
+%% Godunov Scheme
+
+for t=1:size(T,2)
+%t=0;
+%while t<T_final
+    Q_old=Q;
+    for l=1:3
+        % Finding Lax-Friedrich flux
+        for i=1:(size(X,2)-1)
+            % Velocity of sound in their respective domains
+            cl=sqrt((g*p(i))/rho(i));
+            cr=sqrt((g*p(i+1))/rho(i+1));
+            
+            % Finding the maximum eigen value
+            A=[abs(u(i)),abs(u(i)+cl),abs(u(i)-cl),abs(u(i+1)),abs(u(i+1)+cr),abs(u(i+1)-cr)];
+            alpha(i)=max(A);
+            
+            % Lax-Friedrich flux
+            F(l,i)=0.5*(E(l,i)+E(l,i+1))-0.5*alpha(i)*(Q_old(l,i+1)-Q_old(l,i));
+        end
+        
+        % Time step determination
+        %dt=cfl*(dx/max(alpha));
+        
+        % Time Marching
+        for j=2:size(X,2)-1
+            Q(l,j)=Q_old(l,j)-(dt/dx)*(F(l,j)-F(l,j-1));
+        end
+    end
+    
+    % Updating the flux
+    E(1,:)=Q(2,:);
+    E(2,:)=((3-g)/2)*((Q(2,:).^2)./Q(1,:))+(g-1)*Q(3,:);
+    E(3,:)=(Q(2,:)./Q(1,:)).*(g*Q(3,:)-((g-1)/2)*((Q(2,:).^2)./Q(1,:)));
+
+%     E(1,:)=Q(2,:);
+%     E(2,:)=((g-3)/2)*Q(1,:).*Q(2,:)+(g-1)*Q(3,:);
+%     E(3,:)=(Q(2,:)./Q(1,:)).*(g*Q(3,:)-((g-1)/2)*Q(1,:).*Q(2,:));
+    
+    % Updating velcity, pressure and density vectors
+    u=Q(2,:)./Q(1,:);
+    rho=Q(1,:);
+    et=Q(3,:)./Q(1,:);
+    e=et-u.^2/2;
+    p=e.*rho*(g-1);
+    
+    %t=t+dt;
+end
+toc
+
+%% Exact Solution
+
+[p_e,u_e,rho_e]=RiemannExact(1,1,0,0.1,0.125,0,1e-4);
+
+%% Visualization
+
+figure
+plot(X,u,'r-','LineWidth',2);
+hold on
+plot(X,u_e,'kREPLACE_WITH_DASH_DASH');
+grid on
+xlabel('X');
+ylabel('Velocity');
+title('Velocity - Gudonov Scheme');
+legend('Godunov Solution','Exact solution')
+
+figure
+plot(X,rho,'g-','LineWidth',2);
+hold on
+plot(X,rho_e,'kREPLACE_WITH_DASH_DASH');
+grid on
+xlabel('X');
+ylabel('Density');
+title('Density - Gudonov Scheme');
+legend('Godunov Solution','Exact solution')
+
+figure
+plot(X,p,'b-','LineWidth',2);
+hold on
+plot(X,p_e,'kREPLACE_WITH_DASH_DASH');
+grid on
+xlabel('X');
+ylabel('Pressure');
+title('Pressure - Gudonov Scheme');
+legend('Godunov Solution','Exact solution')
+##### SOURCE END #####
+--></body></html>
